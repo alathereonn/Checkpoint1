@@ -81,39 +81,32 @@ class _GameCover extends StatelessWidget {
     return Image.network(
       imageUrl!,
       fit: BoxFit.cover,
+      cacheWidth: 300,
       errorBuilder: (_, _, _) => const _CoverPlaceholder(),
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) {
           return child;
         }
 
-        return const _CoverPlaceholder(showProgress: true);
+        return const _CoverPlaceholder();
       },
     );
   }
 }
 
 class _CoverPlaceholder extends StatelessWidget {
-  const _CoverPlaceholder({this.showProgress = false});
-
-  final bool showProgress;
+  const _CoverPlaceholder();
 
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
       color: AppColors.surfaceLight,
       child: Center(
-        child: showProgress
-            ? const SizedBox(
-                width: 25,
-                height: 25,
-                child: CircularProgressIndicator(strokeWidth: 2.5),
-              )
-            : const Icon(
-                Icons.sports_esports_rounded,
-                color: AppColors.primary,
-                size: 38,
-              ),
+        child: const Icon(
+          Icons.sports_esports_rounded,
+          color: AppColors.primary,
+          size: 38,
+        ),
       ),
     );
   }

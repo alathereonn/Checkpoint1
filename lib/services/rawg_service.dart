@@ -1,23 +1,31 @@
 import 'dart:convert';
 
 import 'package:checkpoint/core/constants/api_constants.dart';
-import 'package:checkpoint/models/game_model.dart';
+import 'package:checkpoint/models/game_response.dart';
 import 'package:http/http.dart' as http;
 
 class RawgService {
   const RawgService();
 
-  Future<List<GameModel>> getGames({
+  Future<GameResponse> getGames({
     String? search,
-    String ordering = '-added',
+    String? ordering,
+    int page = 1,
+    int pageSize = ApiConstants.pageSize,
   }) async {
     final trimmedSearch = search?.trim() ?? '';
     final queryParameters = <String, String>{
       'key': ApiConstants.apiKey,
-      'page_size': ApiConstants.pageSize.toString(),
-      'ordering': ordering,
-      if (trimmedSearch.isNotEmpty) 'search': trimmedSearch,
+      'page_size': pageSize.toString(),
+      'page': page.toString(),
+      if (trimmedSearch.isNotEmpty) ...{
+        'search': trimmedSearch,
+        'search_precise': 'true',
+      },
     };
+    if (ordering != null) {
+      queryParameters['ordering'] = ordering;
+    }
     final uri = Uri.parse(ApiConstants.gamesEndpoint)
         .replace(queryParameters: queryParameters);
     final response = await http.get(uri);
@@ -31,14 +39,6 @@ class RawgService {
       throw const FormatException('Invalid games response.');
     }
 
-    final results = decodedResponse['results'];
-    if (results is! List) {
-      throw const FormatException('Games list is missing from the response.');
-    }
-
-    return results
-        .whereType<Map<String, dynamic>>()
-        .map(GameModel.fromJson)
-        .toList();
+    return GameResponse.fromJson(decodedResponse);
   }
 }
