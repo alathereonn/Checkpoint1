@@ -191,37 +191,39 @@ class _GameLibraryPageState extends State<GameLibraryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final scale = (media.size.width / 360.0).clamp(0.85, 1.15);
+
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GameSearchBar(
-                      controller: _searchController,
-                      onChanged: _onSearchChanged,
-                      onSubmitted: _onSearchSubmitted,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GameSortButton(
-                    selectedSort: _selectedSort,
-                    onChanged: _onSortChanged,
-                  ),
-                ],
+        top: true,
+        bottom: false,
+        child: Container(
+          color: AppColors.background,
+          child: Column(
+            children: [
+              _SearchAndSortSection(
+                controller: _searchController,
+                selectedSort: _selectedSort,
+                onSearchChanged: _onSearchChanged,
+                onSearchSubmitted: _onSearchSubmitted,
+                onSortChanged: _onSortChanged,
+                scale: scale,
               ),
-            ),
-            Expanded(child: _buildContent(context)),
-          ],
+              Expanded(
+                child: Container(
+                  color: AppColors.background,
+                  child: _buildContent(context, scale),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildContent(BuildContext context) {
+  Widget _buildContent(BuildContext context, double scale) {
     if (_isInitialLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -258,6 +260,55 @@ class _GameLibraryPageState extends State<GameLibraryPage> {
       hasMore: _hasMore,
       onRetryLoadMore: _loadGames,
       onGameTap: _showComingSoon,
+      scale: scale,
+    );
+  }
+}
+
+class _SearchAndSortSection extends StatelessWidget {
+  const _SearchAndSortSection({
+    required this.controller,
+    required this.selectedSort,
+    required this.onSearchChanged,
+    required this.onSearchSubmitted,
+    required this.onSortChanged,
+    required this.scale,
+  });
+
+  final TextEditingController controller;
+  final GameSort selectedSort;
+  final ValueChanged<String> onSearchChanged;
+  final ValueChanged<String> onSearchSubmitted;
+  final ValueChanged<GameSort> onSortChanged;
+  final double scale;
+
+  double s(double value) => value * scale;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(s(12), s(16), s(12), 0),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: GameSearchBar(
+              controller: controller,
+              onChanged: onSearchChanged,
+              onSubmitted: onSearchSubmitted,
+              scale: scale,
+            ),
+          ),
+          SizedBox(width: s(8)),
+          Expanded(
+            child: GameSortButton(
+              selectedSort: selectedSort,
+              onChanged: onSortChanged,
+              scale: scale,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -271,6 +322,7 @@ class _GameGrid extends StatelessWidget {
     required this.hasMore,
     required this.onRetryLoadMore,
     required this.onGameTap,
+    required this.scale,
   });
 
   final List<GameModel> games;
@@ -280,46 +332,114 @@ class _GameGrid extends StatelessWidget {
   final bool hasMore;
   final VoidCallback onRetryLoadMore;
   final VoidCallback onGameTap;
+  final double scale;
+
+  double s(double value) => value * scale;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 18, 12, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Games', style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 12),
-          Expanded(
-            child: CustomScrollView(
-              controller: scrollController,
-              slivers: [
-                SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 0.49,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) =>
-                        GameCard(game: games[index], onTap: onGameTap),
-                    childCount: games.length,
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: _LoadMoreFooter(
-                    isLoading: isLoadingMore,
-                    error: loadMoreError,
-                    hasMore: hasMore,
-                    onRetry: onRetryLoadMore,
-                  ),
-                ),
-              ],
+      padding: EdgeInsets.fromLTRB(s(12), s(18), s(12), 0),
+      child: Container(
+        color: AppColors.background,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _GamesTitleSection(scale: scale),
+            Expanded(
+              child: _GameGridSection(
+                games: games,
+                scrollController: scrollController,
+                isLoadingMore: isLoadingMore,
+                loadMoreError: loadMoreError,
+                hasMore: hasMore,
+                onRetryLoadMore: onRetryLoadMore,
+                onGameTap: onGameTap,
+                scale: scale,
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GamesTitleSection extends StatelessWidget {
+  const _GamesTitleSection({required this.scale});
+
+  final double scale;
+
+  double s(double value) => value * scale;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(bottom: s(12)),
+      child: Row(
+        children: [
+          Text(
+            'Games',
+            style: Theme.of(context).textTheme.headlineMedium
+                ?.copyWith(fontSize: s(28).clamp(24.0, 32.0)),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _GameGridSection extends StatelessWidget {
+  const _GameGridSection({
+    required this.games,
+    required this.scrollController,
+    required this.isLoadingMore,
+    required this.loadMoreError,
+    required this.hasMore,
+    required this.onRetryLoadMore,
+    required this.onGameTap,
+    required this.scale,
+  });
+
+  final List<GameModel> games;
+  final ScrollController scrollController;
+  final bool isLoadingMore;
+  final String? loadMoreError;
+  final bool hasMore;
+  final VoidCallback onRetryLoadMore;
+  final VoidCallback onGameTap;
+  final double scale;
+
+  double s(double value) => value * scale;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      controller: scrollController,
+      slivers: [
+        SliverGrid(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: s(12),
+            crossAxisSpacing: s(10),
+            childAspectRatio: 0.49,
+          ),
+          delegate: SliverChildBuilderDelegate(
+            (context, index) =>
+                GameCard(game: games[index], onTap: onGameTap, scale: scale),
+            childCount: games.length,
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: _LoadMoreFooter(
+            isLoading: isLoadingMore,
+            error: loadMoreError,
+            hasMore: hasMore,
+            onRetry: onRetryLoadMore,
+            scale: scale,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -330,22 +450,26 @@ class _LoadMoreFooter extends StatelessWidget {
     required this.error,
     required this.hasMore,
     required this.onRetry,
+    required this.scale,
   });
 
   final bool isLoading;
   final String? error;
   final bool hasMore;
   final VoidCallback onRetry;
+  final double scale;
+
+  double s(double value) => value * scale;
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 20),
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: s(20)),
         child: Center(
           child: SizedBox(
-            width: 24,
-            height: 24,
+            width: s(24),
+            height: s(24),
             child: CircularProgressIndicator(strokeWidth: 2.5),
           ),
         ),
@@ -354,7 +478,7 @@ class _LoadMoreFooter extends StatelessWidget {
 
     if (error != null) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: EdgeInsets.symmetric(vertical: s(12)),
         child: Center(
           child: TextButton.icon(
             onPressed: onRetry,
@@ -365,7 +489,7 @@ class _LoadMoreFooter extends StatelessWidget {
       );
     }
 
-    return SizedBox(height: hasMore ? 16 : 24);
+    return SizedBox(height: s(hasMore ? 16 : 24));
   }
 }
 

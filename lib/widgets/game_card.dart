@@ -3,10 +3,18 @@ import 'package:checkpoint/models/game_model.dart';
 import 'package:flutter/material.dart';
 
 class GameCard extends StatelessWidget {
-  const GameCard({super.key, required this.game, this.onTap});
+  const GameCard({
+    super.key,
+    required this.game,
+    this.onTap,
+    required this.scale,
+  });
 
   final GameModel game;
   final VoidCallback? onTap;
+  final double scale;
+
+  double s(double value) => value * scale;
 
   @override
   Widget build(BuildContext context) {
@@ -23,41 +31,35 @@ class GameCard extends StatelessWidget {
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(3, 6, 3, 3),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        game.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontSize: 11, height: 1.15),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.star_rounded,
-                          color: AppColors.primary,
-                          size: 13,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          game.rating.toStringAsFixed(1),
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: AppColors.mutedText,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ],
+                padding: EdgeInsets.fromLTRB(s(3), s(6), s(3), 0),
+                child: Text(
+                  game.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontSize: s(11), height: 1.15),
                 ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(s(3), s(2), s(3), s(3)),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.star_rounded,
+                    color: AppColors.primary,
+                    size: s(13),
+                  ),
+                  SizedBox(width: s(2)),
+                  Text(
+                    game.rating.toStringAsFixed(1),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.mutedText,
+                      fontSize: s(10),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

@@ -7,10 +7,14 @@ class GameSortButton extends StatelessWidget {
     super.key,
     required this.selectedSort,
     required this.onChanged,
+    required this.scale,
   });
 
   final GameSort selectedSort;
   final ValueChanged<GameSort> onChanged;
+  final double scale;
+
+  double s(double value) => value * scale;
 
   @override
   Widget build(BuildContext context) {
@@ -33,26 +37,30 @@ class GameSortButton extends StatelessWidget {
           )
           .toList(),
       child: Container(
-        height: 52,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: s(52),
+        padding: EdgeInsets.symmetric(horizontal: s(10)),
         decoration: BoxDecoration(
           color: AppColors.surfaceLight,
           border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(s(14)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.tune_rounded, color: AppColors.primary, size: 19),
-            const SizedBox(width: 5),
-            Text(
-              selectedSort.label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.primaryText,
-                fontWeight: FontWeight.w600,
+            Icon(Icons.tune_rounded, color: AppColors.primary, size: s(19)),
+            SizedBox(width: s(5)),
+            Flexible(
+              child: Text(
+                selectedSort.label,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.primaryText,
+                  fontSize: s(14),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            const Icon(Icons.arrow_drop_down_rounded),
+            Icon(Icons.arrow_drop_down_rounded, size: s(24)),
           ],
         ),
       ),
