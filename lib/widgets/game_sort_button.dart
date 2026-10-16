@@ -1,5 +1,5 @@
 import 'package:checkpoint/core/constants/app_colors.dart';
-import 'package:checkpoint/models/game_sort.dart';
+import 'package:checkpoint/model/game_sort.dart';
 import 'package:flutter/material.dart';
 
 class GameSortButton extends StatelessWidget {

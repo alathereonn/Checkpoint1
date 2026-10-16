@@ -1,4 +1,4 @@
-import 'package:checkpoint/models/game_model.dart';
+import 'package:checkpoint/model/game_model.dart';
 
 class GameResponse {
   const GameResponse({required this.games, required this.next});

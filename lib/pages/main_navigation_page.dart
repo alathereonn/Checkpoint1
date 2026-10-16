@@ -1,3 +1,4 @@
+import 'package:checkpoint/controller/game_controller.dart';
 import 'package:checkpoint/core/constants/app_colors.dart';
 import 'package:checkpoint/pages/game_library_page.dart';
 import 'package:checkpoint/pages/library_page.dart';
@@ -6,21 +7,28 @@ import 'package:checkpoint/pages/quest_page.dart';
 import 'package:flutter/material.dart';
 
 class MainNavigationPage extends StatefulWidget {
-  const MainNavigationPage({super.key});
+  const MainNavigationPage({super.key, required this.gameController});
+
+  final GameController gameController;
 
   @override
   State<MainNavigationPage> createState() => _MainNavigationPageState();
 }
 
 class _MainNavigationPageState extends State<MainNavigationPage> {
-  static const _pages = <Widget>[
-    GameLibraryPage(),
-    LibraryPage(),
-    QuestPage(),
-    ProfilePage(),
-  ];
-
+  late final List<Widget> _pages;
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      GameLibraryPage(gameController: widget.gameController),
+      const LibraryPage(),
+      const QuestPage(),
+      const ProfilePage(),
+    ];
+  }
 
   void _selectDestination(int index) {
     setState(() {

@@ -1,5 +1,5 @@
 import 'package:checkpoint/core/constants/app_colors.dart';
-import 'package:checkpoint/models/game_model.dart';
+import 'package:checkpoint/model/game_model.dart';
 import 'package:flutter/material.dart';
 
 class GameCard extends StatelessWidget {

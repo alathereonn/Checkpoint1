@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:checkpoint/core/constants/api_constants.dart';
-import 'package:checkpoint/models/game_response.dart';
+import 'package:checkpoint/model/game_response.dart';
 import 'package:http/http.dart' as http;
 
 class RawgService {
