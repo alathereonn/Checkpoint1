@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:checkpoint/enum/load_state.dart';
 import 'package:checkpoint/enum/library_status.dart';
+import 'package:checkpoint/enum/quest_status.dart';
+import 'package:checkpoint/model/daily_quest.dart';
 import 'package:checkpoint/model/game_detail_model.dart';
 import 'package:checkpoint/model/game_model.dart';
 import 'package:checkpoint/model/game_response.dart';
@@ -19,6 +21,8 @@ class GameController extends ChangeNotifier {
   Timer? _debounce;
   final List<GameModel> _games = [];
   final List<LibraryGame> _libraryGames = [];
+  final List<DailyQuest> _dailyQuests = [];
+  final ValueNotifier<int> _questRevision = ValueNotifier(0);
 
   LoadState _detailLoadState = LoadState.initial;
   GameDetailModel? _gameDetail;
@@ -65,6 +69,13 @@ class GameController extends ChangeNotifier {
 
   List<GameModel> get games => List.unmodifiable(_games);
   List<LibraryGame> get libraryGames => List.unmodifiable(_libraryGames);
+  List<LibraryGame> get questEligibleLibraryGames => List.unmodifiable(
+    _libraryGames.where(
+      (libraryGame) => libraryGame.status == LibraryStatus.playing,
+    ),
+  );
+  List<DailyQuest> get dailyQuests => List.unmodifiable(_dailyQuests);
+  ValueListenable<int> get questRevision => _questRevision;
   LoadState get detailLoadState => _detailLoadState;
   GameDetailModel? get gameDetail => _gameDetail;
   String? get detailError => _detailError;
@@ -204,9 +215,73 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool addDailyQuest({
+    required LibraryGame libraryGame,
+    required String title,
+    required String description,
+    required DateTime questDate,
+  }) {
+    final cleanTitle = title.trim();
+
+    if (cleanTitle.isEmpty) {
+      return false;
+    }
+
+    LibraryGame? currentLibraryGame;
+    for (final item in _libraryGames) {
+      if (item.game.id == libraryGame.game.id) {
+        currentLibraryGame = item;
+        break;
+      }
+    }
+
+    if (currentLibraryGame == null ||
+        currentLibraryGame.status != LibraryStatus.playing) {
+      return false;
+    }
+
+    _dailyQuests.add(
+      DailyQuest(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        libraryGame: currentLibraryGame,
+        title: cleanTitle,
+        description: description.trim(),
+        questDate: questDate,
+        status: QuestStatus.pending,
+      ),
+    );
+
+    _notifyQuestListeners();
+    return true;
+  }
+
+  void updateQuestStatus(String questId, QuestStatus status) {
+    final questIndex = _dailyQuests.indexWhere((quest) => quest.id == questId);
+
+    if (questIndex == -1) {
+      return;
+    }
+
+    _dailyQuests[questIndex] = _dailyQuests[questIndex].copyWith(
+      status: status,
+    );
+
+    _notifyQuestListeners();
+  }
+
+  void deleteDailyQuest(String questId) {
+    _dailyQuests.removeWhere((quest) => quest.id == questId);
+    _notifyQuestListeners();
+  }
+
+  void _notifyQuestListeners() {
+    _questRevision.value++;
+  }
+
   @override
   void dispose() {
     _debounce?.cancel();
+    _questRevision.dispose();
     super.dispose();
   }
 }

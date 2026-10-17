@@ -75,11 +75,12 @@ class _GameLibraryPageState extends State<GameLibraryPage> {
   }
 
   void _openGameDetail(GameModel game) {
-    Navigator.push(
+    Navigator.pushNamed(
       context,
-      MaterialPageRoute(
-        builder: (_) =>
-            GameDetailPage(game: game, gameController: _gameController),
+      GameDetailPage.routeName,
+      arguments: GameDetailPageArguments(
+        game: game,
+        gameController: _gameController,
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:checkpoint/controller/game_controller.dart';
 import 'package:checkpoint/core/theme/app_theme.dart';
+import 'package:checkpoint/pages/game_detail_page.dart';
 import 'package:checkpoint/pages/main_navigation_page.dart';
 import 'package:checkpoint/service/rawg_service.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,20 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: MainNavigationPage(gameController: gameController),
+      onGenerateRoute: (settings) {
+        if (settings.name == GameDetailPage.routeName) {
+          final arguments = settings.arguments! as GameDetailPageArguments;
+
+          return MaterialPageRoute(
+            builder: (_) => GameDetailPage(
+              game: arguments.game,
+              gameController: arguments.gameController,
+            ),
+          );
+        }
+
+        return null;
+      },
     );
   }
 }

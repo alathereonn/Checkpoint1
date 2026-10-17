@@ -1,11 +1,14 @@
-import 'package:checkpoint/enum/load_state.dart';
-import 'package:checkpoint/enum/library_status.dart';
 import 'package:checkpoint/controller/game_controller.dart';
 import 'package:checkpoint/core/constants/app_colors.dart';
+import 'package:checkpoint/enum/library_status.dart';
+import 'package:checkpoint/enum/load_state.dart';
 import 'package:checkpoint/model/game_model.dart';
+import 'package:checkpoint/widgets/library_status_sheet.dart';
 import 'package:flutter/material.dart';
 
 class GameDetailPage extends StatefulWidget {
+  static const routeName = '/game-detail';
+
   const GameDetailPage({
     super.key,
     required this.game,
@@ -17,6 +20,16 @@ class GameDetailPage extends StatefulWidget {
 
   @override
   State<GameDetailPage> createState() => _GameDetailPageState();
+}
+
+class GameDetailPageArguments {
+  const GameDetailPageArguments({
+    required this.game,
+    required this.gameController,
+  });
+
+  final GameModel game;
+  final GameController gameController;
 }
 
 class _GameDetailPageState extends State<GameDetailPage> {
@@ -52,46 +65,7 @@ class _GameDetailPageState extends State<GameDetailPage> {
   }
 
   Future<void> _showLibraryStatusSheet() async {
-    final selectedStatus = await showModalBottomSheet<LibraryStatus>(
-      context: context,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const ListTile(
-                title: Text('Add to Library'),
-                subtitle: Text('Choose the current game status'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.bookmark_outline_rounded),
-                title: Text(LibraryStatus.backlog.label),
-                subtitle: Text(LibraryStatus.backlog.description),
-                onTap: () {
-                  Navigator.pop(sheetContext, LibraryStatus.backlog);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.play_circle_outline_rounded),
-                title: Text(LibraryStatus.playing.label),
-                subtitle: Text(LibraryStatus.playing.description),
-                onTap: () {
-                  Navigator.pop(sheetContext, LibraryStatus.playing);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.check_circle_outline_rounded),
-                title: Text(LibraryStatus.completed.label),
-                subtitle: Text(LibraryStatus.completed.description),
-                onTap: () {
-                  Navigator.pop(sheetContext, LibraryStatus.completed);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    final selectedStatus = await showLibraryStatusSheet(context);
 
     if (!mounted || selectedStatus == null) {
       return;
@@ -130,20 +104,57 @@ class _GameDetailPageState extends State<GameDetailPage> {
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 12),
+
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.star_rounded, color: AppColors.primary),
-                      const SizedBox(width: 4),
-                      Text(game.rating.toStringAsFixed(1)),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(game.rating.toStringAsFixed(1)),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text('Release date: ${game.released ?? '-'}'),
+                            const SizedBox(height: 8),
+                            Text(
+                              game.genres.isEmpty
+                                  ? 'Genre: -'
+                                  : 'Genre: ${game.genres.join(', ')}',
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      ListenableBuilder(
+                        listenable: widget.gameController,
+                        builder: (context, _) {
+                          final isInLibrary = widget.gameController.isInLibrary(
+                            game.id,
+                          );
+
+                          return FilledButton.icon(
+                            onPressed: _showLibraryStatusSheet,
+                            icon: Icon(
+                              isInLibrary
+                                  ? Icons.edit_outlined
+                                  : Icons.add_circle_outline_rounded,
+                            ),
+                            label: Text(isInLibrary ? 'Edit' : 'Add'),
+                          );
+                        },
+                      ),
                     ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text('Release date: ${game.released ?? '-'}'),
-                  const SizedBox(height: 8),
-                  Text(
-                    game.genres.isEmpty
-                        ? 'Genre: -'
-                        : 'Genre: ${game.genres.join(', ')}',
                   ),
                   const SizedBox(height: 24),
 
@@ -171,7 +182,6 @@ class _GameDetailPageState extends State<GameDetailPage> {
                       }
 
                       final detail = controller.gameDetail;
-                      final isInLibrary = controller.isInLibrary(game.id);
 
                       if (detail == null) {
                         return const SizedBox.shrink();
@@ -224,24 +234,6 @@ class _GameDetailPageState extends State<GameDetailPage> {
                             const SizedBox(height: 8),
                             Text('Age rating: ${detail.esrbRating}'),
                           ],
-
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              onPressed: _showLibraryStatusSheet,
-                              icon: Icon(
-                                isInLibrary
-                                    ? Icons.edit_outlined
-                                    : Icons.add_circle_outline_rounded,
-                              ),
-                              label: Text(
-                                isInLibrary
-                                    ? 'Update Library Status'
-                                    : 'Add to Library',
-                              ),
-                            ),
-                          ),
 
                           const SizedBox(height: 24),
                           const Text(
