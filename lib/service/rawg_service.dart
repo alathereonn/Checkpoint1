@@ -1,11 +1,30 @@
 import 'dart:convert';
 
 import 'package:checkpoint/core/constants/api_constants.dart';
+import 'package:checkpoint/model/game_detail_model.dart';
 import 'package:checkpoint/model/game_response.dart';
 import 'package:http/http.dart' as http;
 
 class RawgService {
   const RawgService();
+  Future<GameDetailModel> getGameDetail(int gameId) async {
+    final uri = Uri.parse('${ApiConstants.gamesEndpoint}/$gameId')
+        .replace(queryParameters: {'key': ApiConstants.apiKey});
+
+    final response = await http.get(uri);
+
+    if (response.statusCode != 200) {
+      throw Exception('Unable to load game detail (${response.statusCode}).');
+    }
+
+    final decodedResponse = jsonDecode(response.body);
+
+    if (decodedResponse is! Map<String, dynamic>) {
+      throw const FormatException('Invalid game detail response.');
+    }
+
+    return GameDetailModel.fromJson(decodedResponse);
+  }
 
   Future<GameResponse> getGames({
     String? search,

@@ -24,7 +24,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     super.initState();
     _pages = [
       GameLibraryPage(gameController: widget.gameController),
-      const LibraryPage(),
+      LibraryPage(gameController: widget.gameController),
       const QuestPage(),
       const ProfilePage(),
     ];

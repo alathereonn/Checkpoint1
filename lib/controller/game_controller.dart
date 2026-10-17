@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:checkpoint/enum/load_state.dart';
+import 'package:checkpoint/enum/library_status.dart';
+import 'package:checkpoint/model/game_detail_model.dart';
 import 'package:checkpoint/model/game_model.dart';
 import 'package:checkpoint/model/game_response.dart';
 import 'package:checkpoint/model/game_sort.dart';
+import 'package:checkpoint/model/library_game.dart';
 import 'package:checkpoint/service/rawg_service.dart';
 import 'package:flutter/foundation.dart';
 
@@ -15,6 +18,39 @@ class GameController extends ChangeNotifier {
 
   Timer? _debounce;
   final List<GameModel> _games = [];
+  final List<LibraryGame> _libraryGames = [];
+
+  LoadState _detailLoadState = LoadState.initial;
+  GameDetailModel? _gameDetail;
+  String? _detailError;
+  int _detailRequestVersion = 0;
+
+  Future<void> loadGameDetail(int gameId) async {
+    final requestVersion = ++_detailRequestVersion;
+    _detailLoadState = LoadState.loading;
+    _gameDetail = null;
+    _detailError = null;
+    notifyListeners();
+
+    try {
+      final detail = await _rawgService.getGameDetail(gameId);
+      if (requestVersion != _detailRequestVersion) {
+        return;
+      }
+
+      _gameDetail = detail;
+      _detailLoadState = LoadState.success;
+    } catch (_) {
+      if (requestVersion != _detailRequestVersion) {
+        return;
+      }
+
+      _detailError = 'Could not load game detail.';
+      _detailLoadState = LoadState.error;
+    }
+
+    notifyListeners();
+  }
 
   LoadState initialLoadState = LoadState.initial;
   LoadState loadMoreState = LoadState.initial;
@@ -28,6 +64,34 @@ class GameController extends ChangeNotifier {
   GameSort selectedSort = GameSort.popular;
 
   List<GameModel> get games => List.unmodifiable(_games);
+  List<LibraryGame> get libraryGames => List.unmodifiable(_libraryGames);
+  LoadState get detailLoadState => _detailLoadState;
+  GameDetailModel? get gameDetail => _gameDetail;
+  String? get detailError => _detailError;
+
+  bool isInLibrary(int gameId) {
+    return _libraryGames.any((libraryGame) => libraryGame.game.id == gameId);
+  }
+
+  void addToLibrary(GameModel game, LibraryStatus status) {
+    final existingIndex = _libraryGames.indexWhere(
+      (libraryGame) => libraryGame.game.id == game.id,
+    );
+
+    if (existingIndex == -1) {
+      _libraryGames.add(
+        LibraryGame(game: game, status: status, addedAt: DateTime.now()),
+      );
+    } else {
+      _libraryGames[existingIndex] = _libraryGames[existingIndex].copyWith(
+        game: game,
+        status: status,
+      );
+    }
+
+    notifyListeners();
+  }
+
   String get searchQuery => _searchQuery;
 
   bool get isInitialLoading => initialLoadState == LoadState.loading;

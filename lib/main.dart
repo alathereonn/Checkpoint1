@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 
 void main() {
   final rawgService = const RawgService();
-  final gameController = GameController(rawgService: rawgService)..loadGames(reset: true);
+  final gameController = GameController(rawgService: rawgService)
+    ..loadGames(reset: true);
 
   runApp(MyApp(gameController: gameController));
 }

@@ -3,6 +3,7 @@ import 'package:checkpoint/core/constants/app_colors.dart';
 import 'package:checkpoint/enum/load_state.dart';
 import 'package:checkpoint/model/game_model.dart';
 import 'package:checkpoint/model/game_sort.dart';
+import 'package:checkpoint/pages/game_detail_page.dart';
 import 'package:checkpoint/widgets/game_card.dart';
 import 'package:checkpoint/widgets/game_search_bar.dart';
 import 'package:checkpoint/widgets/game_sort_button.dart';
@@ -27,28 +28,15 @@ class _GameLibraryPageState extends State<GameLibraryPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    _gameController.addListener(_onControllerChanged);
   }
 
   @override
   void dispose() {
-    _gameController.removeListener(_onControllerChanged);
     _searchController.dispose();
     _scrollController
       ..removeListener(_onScroll)
       ..dispose();
     super.dispose();
-  }
-
-  void _onControllerChanged() {
-    if (!mounted) {
-      return;
-    }
-
-    if (_gameController.isInitialLoading && _gameController.games.isEmpty) {
-      _scrollToTop();
-    }
-    setState(() {});
   }
 
   void _onScroll() {
@@ -71,10 +59,12 @@ class _GameLibraryPageState extends State<GameLibraryPage> {
   }
 
   void _onSearchSubmitted(String query) {
+    _scrollToTop();
     _gameController.onSearchSubmitted(query);
   }
 
   void _onSortChanged(GameSort sort) {
+    _scrollToTop();
     _gameController.onSortChanged(sort, _searchController.text);
   }
 
@@ -84,43 +74,52 @@ class _GameLibraryPageState extends State<GameLibraryPage> {
     }
   }
 
-  void _showComingSoon() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Game detail coming soon')));
+  void _openGameDetail(GameModel game) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            GameDetailPage(game: game, gameController: _gameController),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final scale = (media.size.width / 360.0).clamp(0.85, 1.15);
+    return ListenableBuilder(
+      listenable: _gameController,
+      builder: (context, _) {
+        final media = MediaQuery.of(context);
+        final scale = (media.size.width / 360.0).clamp(0.85, 1.15);
 
-    return Scaffold(
-      body: SafeArea(
-        top: true,
-        bottom: false,
-        child: Container(
-          color: AppColors.background,
-          child: Column(
-            children: [
-              _SearchAndSortSection(
-                controller: _searchController,
-                selectedSort: _gameController.selectedSort,
-                onSearchChanged: _onSearchChanged,
-                onSearchSubmitted: _onSearchSubmitted,
-                onSortChanged: _onSortChanged,
-                scale: scale,
+        return Scaffold(
+          body: SafeArea(
+            top: true,
+            bottom: false,
+            child: Container(
+              color: AppColors.background,
+              child: Column(
+                children: [
+                  _SearchAndSortSection(
+                    controller: _searchController,
+                    selectedSort: _gameController.selectedSort,
+                    onSearchChanged: _onSearchChanged,
+                    onSearchSubmitted: _onSearchSubmitted,
+                    onSortChanged: _onSortChanged,
+                    scale: scale,
+                  ),
+                  Expanded(
+                    child: Container(
+                      color: AppColors.background,
+                      child: _buildContent(context, scale),
+                    ),
+                  ),
+                ],
               ),
-              Expanded(
-                child: Container(
-                  color: AppColors.background,
-                  child: _buildContent(context, scale),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -162,7 +161,7 @@ class _GameLibraryPageState extends State<GameLibraryPage> {
       loadMoreError: _gameController.loadMoreError,
       hasMore: _gameController.hasMore,
       onRetryLoadMore: _gameController.loadGames,
-      onGameTap: _showComingSoon,
+      onGameTap: _openGameDetail,
       scale: scale,
     );
   }
@@ -234,7 +233,7 @@ class _GameGrid extends StatelessWidget {
   final String? loadMoreError;
   final bool hasMore;
   final VoidCallback onRetryLoadMore;
-  final VoidCallback onGameTap;
+  final ValueChanged<GameModel> onGameTap;
   final double scale;
 
   double s(double value) => value * scale;
@@ -310,7 +309,7 @@ class _GameGridSection extends StatelessWidget {
   final String? loadMoreError;
   final bool hasMore;
   final VoidCallback onRetryLoadMore;
-  final VoidCallback onGameTap;
+  final ValueChanged<GameModel> onGameTap;
   final double scale;
 
   double s(double value) => value * scale;
@@ -328,8 +327,11 @@ class _GameGridSection extends StatelessWidget {
             childAspectRatio: 0.49,
           ),
           delegate: SliverChildBuilderDelegate(
-            (context, index) =>
-                GameCard(game: games[index], onTap: onGameTap, scale: scale),
+            (context, index) => GameCard(
+              game: games[index],
+              onTap: () => onGameTap(games[index]),
+              scale: scale,
+            ),
             childCount: games.length,
           ),
         ),
