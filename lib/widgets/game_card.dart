@@ -27,7 +27,7 @@ class GameCard extends StatelessWidget {
           children: [
             AspectRatio(
               aspectRatio: 2 / 3,
-              child: _GameCover(imageUrl: game.backgroundImage),
+              child: const _CoverPlaceholder(),
             ),
             Expanded(
               child: Padding(
@@ -65,33 +65,6 @@ class GameCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _GameCover extends StatelessWidget {
-  const _GameCover({required this.imageUrl});
-
-  final String? imageUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    if (imageUrl == null || imageUrl!.isEmpty) {
-      return const _CoverPlaceholder();
-    }
-
-    return Image.network(
-      imageUrl!,
-      fit: BoxFit.cover,
-      cacheWidth: 300,
-      errorBuilder: (_, _, _) => const _CoverPlaceholder(),
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) {
-          return child;
-        }
-
-        return const _CoverPlaceholder();
-      },
     );
   }
 }

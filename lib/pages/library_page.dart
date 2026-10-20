@@ -2,6 +2,7 @@ import 'package:checkpoint/controller/game_controller.dart';
 import 'package:checkpoint/enum/library_filter.dart';
 import 'package:checkpoint/enum/library_status.dart';
 import 'package:checkpoint/model/library_game.dart';
+import 'package:checkpoint/pages/session_history_page.dart';
 import 'package:checkpoint/widgets/library_status_sheet.dart';
 import 'package:flutter/material.dart';
 
@@ -29,6 +30,17 @@ class _LibraryPageState extends State<LibraryPage> {
     }
   }
 
+  IconData _statusIcon(LibraryStatus status) {
+    switch (status) {
+      case LibraryStatus.backlog:
+        return Icons.bookmark_border_rounded;
+      case LibraryStatus.playing:
+        return Icons.play_circle_outline_rounded;
+      case LibraryStatus.completed:
+        return Icons.check_circle_outline_rounded;
+    }
+  }
+
   Future<void> _updateStatus(
     BuildContext context,
     LibraryGame libraryGame,
@@ -51,6 +63,29 @@ class _LibraryPageState extends State<LibraryPage> {
         ),
       ),
     );
+  }
+
+  void _toggleGameSession(
+    BuildContext context,
+    LibraryGame libraryGame,
+  ) {
+    final activeGameSession = gameController.activeGameSession;
+
+    if (activeGameSession != null) {
+      if (activeGameSession.libraryGame.game.id != libraryGame.game.id) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('End the active session first'),
+          ),
+        );
+        return;
+      }
+
+      gameController.endGameSession(activeGameSession.id);
+      return;
+    }
+
+    gameController.startGameSession(libraryGame);
   }
 
   Widget _buildFilterBar() {
@@ -81,7 +116,22 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Library')),
+      appBar: AppBar(
+        title: const Text('Library'),
+        actions: [
+          IconButton(
+            tooltip: 'Session History',
+            icon: const Icon(Icons.history_rounded),
+            onPressed: () {
+              Navigator.pushNamed(
+                context,
+                SessionHistoryPage.routeName,
+                arguments: gameController,
+              );
+            },
+          )
+        ]
+        ),
       body: ListenableBuilder(
         listenable: gameController,
         builder: (context, _) {
@@ -113,33 +163,23 @@ class _LibraryPageState extends State<LibraryPage> {
                           final libraryGame = filteredGames[index];
                           final game = libraryGame.game;
                           final statusColor = _statusColor(libraryGame.status);
+                          final activeGameSession =
+                              gameController.activeGameSession;
+                          final isThisGameActive =
+                              activeGameSession?.libraryGame.game.id == game.id;
 
                           return Card(
                             child: ListTile(
                               contentPadding: const EdgeInsets.all(10),
                               leading: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: SizedBox(
+                                child: const SizedBox(
                                   width: 56,
                                   height: 72,
-                                  child: game.backgroundImage == null
-                                      ? const ColoredBox(
-                                          color: Colors.black12,
-                                          child: Icon(
-                                            Icons.sports_esports_rounded,
-                                          ),
-                                        )
-                                      : Image.network(
-                                          game.backgroundImage!,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, _, _) =>
-                                              const ColoredBox(
-                                                color: Colors.black12,
-                                                child: Icon(
-                                                  Icons.sports_esports_rounded,
-                                                ),
-                                              ),
-                                        ),
+                                  child: ColoredBox(
+                                    color: Colors.black12,
+                                    child: Icon(Icons.sports_esports_rounded),
+                                  ),
                                 ),
                               ),
                               title: Text(game.name),
@@ -149,17 +189,35 @@ class _LibraryPageState extends State<LibraryPage> {
                                   'Rating: ${game.rating.toStringAsFixed(1)}',
                                 ),
                               ),
-                              trailing: ActionChip(
-                                avatar: Icon(
-                                  Icons.edit_outlined,
-                                  size: 16,
-                                  color: statusColor,
-                                ),
-                                label: Text(libraryGame.status.label),
-                                labelStyle: TextStyle(color: statusColor),
-                                side: BorderSide(color: statusColor),
-                                onPressed: () =>
-                                    _updateStatus(context, libraryGame),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (libraryGame.status ==
+                                      LibraryStatus.playing)
+                                    IconButton(
+                                      tooltip: isThisGameActive
+                                          ? 'End session'
+                                          : 'Start session',
+                                      icon: Icon(
+                                        isThisGameActive
+                                            ? Icons.stop_circle_outlined
+                                            : Icons.play_circle_outline_rounded,
+                                      ),
+                                      onPressed: () => _toggleGameSession(
+                                        context,
+                                        libraryGame,
+                                      ),
+                                    ),
+                                  IconButton(
+                                    tooltip: libraryGame.status.label,
+                                    icon: Icon(
+                                      _statusIcon(libraryGame.status),
+                                      color: statusColor,
+                                    ),
+                                    onPressed: () =>
+                                        _updateStatus(context, libraryGame),
+                                  ),
+                                ],
                               ),
                             ),
                           );

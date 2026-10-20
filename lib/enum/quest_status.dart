@@ -1,4 +1,7 @@
-enum QuestStatus { pending, completed }
+enum QuestStatus {
+  pending,
+  completed
+}
 
 extension QuestStatusX on QuestStatus {
   String get label {

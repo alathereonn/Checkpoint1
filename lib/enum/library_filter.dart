@@ -1,6 +1,11 @@
 import 'package:checkpoint/enum/library_status.dart';
 
-enum LibraryFilter { all, backlog, playing, completed }
+enum LibraryFilter {
+  all,
+  backlog,
+  playing,
+  completed
+}
 
 extension LibraryFilterX on LibraryFilter {
   String get label {

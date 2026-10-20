@@ -2,13 +2,18 @@ import 'package:checkpoint/controller/game_controller.dart';
 import 'package:checkpoint/core/theme/app_theme.dart';
 import 'package:checkpoint/pages/game_detail_page.dart';
 import 'package:checkpoint/pages/main_navigation_page.dart';
-import 'package:checkpoint/service/rawg_service.dart';
+import 'package:checkpoint/pages/session_history_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-void main() {
-  final rawgService = const RawgService();
-  final gameController = GameController(rawgService: rawgService)
-    ..loadGames(reset: true);
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
+
+  final gameController = GameController();
 
   runApp(MyApp(gameController: gameController));
 }
@@ -33,6 +38,16 @@ class MyApp extends StatelessWidget {
             builder: (_) => GameDetailPage(
               game: arguments.game,
               gameController: arguments.gameController,
+            ),
+          );
+        }
+
+        if (settings.name == SessionHistoryPage.routeName) {
+          final gameController = settings.arguments! as GameController;
+
+          return MaterialPageRoute(
+            builder: (_) => SessionHistoryPage(
+              gameController: gameController,
             ),
           );
         }

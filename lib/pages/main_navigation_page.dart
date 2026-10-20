@@ -2,7 +2,6 @@ import 'package:checkpoint/controller/game_controller.dart';
 import 'package:checkpoint/core/constants/app_colors.dart';
 import 'package:checkpoint/pages/game_library_page.dart';
 import 'package:checkpoint/pages/library_page.dart';
-import 'package:checkpoint/pages/profile_page.dart';
 import 'package:checkpoint/pages/quest_page.dart';
 import 'package:flutter/material.dart';
 
@@ -26,7 +25,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       GameLibraryPage(gameController: widget.gameController),
       LibraryPage(gameController: widget.gameController),
       QuestPage(gameController: widget.gameController),
-      const ProfilePage(),
     ];
   }
 
@@ -90,11 +88,6 @@ class _BottomNavigationSection extends StatelessWidget {
       icon: Icons.task_alt_outlined,
       selectedIcon: Icons.task_alt,
     ),
-    _NavigationDestinationData(
-      label: 'Profile',
-      icon: Icons.person_outline,
-      selectedIcon: Icons.person,
-    ),
   ];
 
   @override
@@ -106,71 +99,83 @@ class _BottomNavigationSection extends StatelessWidget {
       color: AppColors.white,
       child: SizedBox(
         height: navHeight,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            SizedBox(
-              height: s(32),
-              child: Row(
-                children: List.generate(_destinations.length, (index) {
-                  final destination = _destinations[index];
-                  final isSelected = index == selectedIndex;
-
-                  return Expanded(
-                    child: InkWell(
-                      onTap: () => onDestinationSelected(index),
-                      child: Center(
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: s(64),
-                          height: s(32),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.primary.withValues(alpha: 0.14)
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(s(16)),
-                          ),
-                          child: Icon(
-                            isSelected
-                                ? destination.selectedIcon
-                                : destination.icon,
-                            color: isSelected
-                                ? AppColors.primary
-                                : unselectedColor,
-                            size: s(24),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }),
+            Row(
+              children: List.generate(
+                _destinations.length,
+                (index) => Expanded(
+                  child: InkWell(
+                    onTap: () => onDestinationSelected(index),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
               ),
             ),
-            SizedBox(height: s(4)),
-            SizedBox(
-              height: s(16),
-              child: Row(
-                children: List.generate(_destinations.length, (index) {
-                  final isSelected = index == selectedIndex;
+            IgnorePointer(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    height: s(32),
+                    child: Row(
+                      children: List.generate(_destinations.length, (index) {
+                        final destination = _destinations[index];
+                        final isSelected = index == selectedIndex;
 
-                  return Expanded(
-                    child: InkWell(
-                      onTap: () => onDestinationSelected(index),
-                      child: Center(
-                        child: Text(
-                          _destinations[index].label,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: isSelected
-                                ? AppColors.primary
-                                : unselectedColor,
-                            fontSize: s(12),
-                            fontWeight: FontWeight.w500,
+                        return Expanded(
+                          child: Center(
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: s(64),
+                              height: s(32),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.primary.withValues(alpha: 0.14)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(s(16)),
+                              ),
+                              child: Icon(
+                                isSelected
+                                    ? destination.selectedIcon
+                                    : destination.icon,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : unselectedColor,
+                                size: s(24),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      }),
                     ),
-                  );
-                }),
+                  ),
+                  SizedBox(height: s(4)),
+                  SizedBox(
+                    height: s(16),
+                    child: Row(
+                      children: List.generate(_destinations.length, (index) {
+                        final isSelected = index == selectedIndex;
+
+                        return Expanded(
+                          child: Center(
+                            child: Text(
+                              _destinations[index].label,
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : unselectedColor,
+                                fontSize: s(12),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

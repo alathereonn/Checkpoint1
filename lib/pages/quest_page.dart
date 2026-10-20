@@ -107,7 +107,7 @@ class _QuestPageState extends State<QuestPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Daily Quest')),
       body: ListenableBuilder(
-        listenable: _gameController.questRevision,
+        listenable: _gameController,
         builder: (context, _) {
           final quests = _gameController.dailyQuests
               .where((quest) => quest.status == _selectedStatus)

@@ -1,4 +1,8 @@
-enum LibraryStatus { backlog, playing, completed }
+enum LibraryStatus {
+  backlog,
+  playing,
+  completed
+}
 
 extension LibraryStatusLabel on LibraryStatus {
   String get label {

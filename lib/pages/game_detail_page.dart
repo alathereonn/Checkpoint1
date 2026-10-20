@@ -1,12 +1,10 @@
 import 'package:checkpoint/controller/game_controller.dart';
 import 'package:checkpoint/core/constants/app_colors.dart';
 import 'package:checkpoint/enum/library_status.dart';
-import 'package:checkpoint/enum/load_state.dart';
 import 'package:checkpoint/model/game_model.dart';
-import 'package:checkpoint/widgets/library_status_sheet.dart';
 import 'package:flutter/material.dart';
 
-class GameDetailPage extends StatefulWidget {
+class GameDetailPage extends StatelessWidget {
   static const routeName = '/game-detail';
 
   const GameDetailPage({
@@ -18,81 +16,33 @@ class GameDetailPage extends StatefulWidget {
   final GameModel game;
   final GameController gameController;
 
-  @override
-  State<GameDetailPage> createState() => _GameDetailPageState();
-}
-
-class GameDetailPageArguments {
-  const GameDetailPageArguments({
-    required this.game,
-    required this.gameController,
-  });
-
-  final GameModel game;
-  final GameController gameController;
-}
-
-class _GameDetailPageState extends State<GameDetailPage> {
-  @override
-  void initState() {
-    super.initState();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-
-      widget.gameController.loadGameDetail(widget.game.id);
-    });
-  }
-
-  String _englishDescription(String description) {
-    final cleanDescription = _stripHtml(description);
-
-    final spanishStart = cleanDescription.indexOf('Español');
-    if (spanishStart == -1) {
-      return cleanDescription;
-    }
-
-    return cleanDescription.substring(0, spanishStart).trim();
-  }
-
-  String _stripHtml(String value) {
-    return value
-        .replaceAll(RegExp(r'<[^>]*>'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-  }
-
-  Future<void> _showLibraryStatusSheet() async {
-    final selectedStatus = await showLibraryStatusSheet(context);
-
-    if (!mounted || selectedStatus == null) {
-      return;
-    }
-
-    widget.gameController.addToLibrary(widget.game, selectedStatus);
-
+  void _addToLibrary(BuildContext context) {
+    gameController.addToLibrary(game, LibraryStatus.backlog);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${widget.game.name} saved as ${selectedStatus.label}'),
-      ),
+      SnackBar(content: Text('${game.name} added to Backlog')),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final game = widget.game;
-
     return Scaffold(
       appBar: AppBar(title: Text(game.name)),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AspectRatio(
+            const AspectRatio(
               aspectRatio: 16 / 9,
-              child: _GameDetailCover(imageUrl: game.backgroundImage),
+              child: ColoredBox(
+                color: AppColors.surfaceLight,
+                child: Center(
+                  child: Icon(
+                    Icons.sports_esports_rounded,
+                    color: AppColors.primary,
+                    size: 48,
+                  ),
+                ),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(16),
@@ -104,7 +54,6 @@ class _GameDetailPageState extends State<GameDetailPage> {
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 12),
-
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -125,124 +74,56 @@ class _GameDetailPageState extends State<GameDetailPage> {
                             const SizedBox(height: 12),
                             Text('Release date: ${game.released ?? '-'}'),
                             const SizedBox(height: 8),
-                            Text(
-                              game.genres.isEmpty
-                                  ? 'Genre: -'
-                                  : 'Genre: ${game.genres.join(', ')}',
-                            ),
+                            Text('Genre: ${game.genres.join(', ')}'),
                           ],
                         ),
                       ),
-
                       const SizedBox(width: 12),
-
                       ListenableBuilder(
-                        listenable: widget.gameController,
+                        listenable: gameController,
                         builder: (context, _) {
-                          final isInLibrary = widget.gameController.isInLibrary(
+                          final isInLibrary = gameController.isInLibrary(
                             game.id,
                           );
 
                           return FilledButton.icon(
-                            onPressed: _showLibraryStatusSheet,
+                            onPressed: isInLibrary
+                                ? null
+                                : () => _addToLibrary(context),
                             icon: Icon(
                               isInLibrary
-                                  ? Icons.edit_outlined
+                                  ? Icons.check_rounded
                                   : Icons.add_circle_outline_rounded,
                             ),
-                            label: Text(isInLibrary ? 'Edit' : 'Add'),
+                            label: Text(isInLibrary ? 'In Library' : 'Add'),
                           );
                         },
                       ),
                     ],
                   ),
                   const SizedBox(height: 24),
-
-                  ListenableBuilder(
-                    listenable: widget.gameController,
-                    builder: (context, _) {
-                      final controller = widget.gameController;
-
-                      if (controller.detailLoadState == LoadState.initial ||
-                          controller.detailLoadState == LoadState.loading) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(24),
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      }
-
-                      if (controller.detailLoadState == LoadState.error) {
-                        return Text(
-                          controller.detailError ??
-                              'Could not load game detail.',
-                          style: const TextStyle(color: Colors.red),
-                        );
-                      }
-
-                      final detail = controller.gameDetail;
-
-                      if (detail == null) {
-                        return const SizedBox.shrink();
-                      }
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 24),
-                          Text(
-                            'About',
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(_englishDescription(detail.description)),
-
-                          const SizedBox(height: 24),
-                          Text(
-                            'Information',
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          const SizedBox(height: 12),
-
-                          if (detail.platforms.isNotEmpty)
-                            Text('Platforms: ${detail.platforms.join(', ')}'),
-
-                          if (detail.developers.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text('Developer: ${detail.developers.join(', ')}'),
-                          ],
-
-                          if (detail.publishers.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text('Publisher: ${detail.publishers.join(', ')}'),
-                          ],
-
-                          if (detail.playtime != null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              'Estimated playtime: ${detail.playtime} hours',
-                            ),
-                          ],
-
-                          if (detail.metacritic != null) ...[
-                            const SizedBox(height: 8),
-                            Text('Metacritic: ${detail.metacritic}'),
-                          ],
-
-                          if (detail.esrbRating != null) ...[
-                            const SizedBox(height: 8),
-                            Text('Age rating: ${detail.esrbRating}'),
-                          ],
-
-                          const SizedBox(height: 24),
-                          const Text(
-                            'Game data and images provided by RAWG',
-                            style: TextStyle(fontSize: 11),
-                          ),
-                        ],
-                      );
-                    },
+                  Text(
+                    'About',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'This is sample information about ${game.name}.',
+                    textAlign: TextAlign.justify,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Information',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Platform: PC'),
+                  const SizedBox(height: 8),
+                  const Text('Developer: Demo Studio'),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Sample game data',
+                    style: TextStyle(fontSize: 11),
                   ),
                 ],
               ),
@@ -254,39 +135,12 @@ class _GameDetailPageState extends State<GameDetailPage> {
   }
 }
 
-class _GameDetailCover extends StatelessWidget {
-  const _GameDetailCover({required this.imageUrl});
+class GameDetailPageArguments {
+  const GameDetailPageArguments({
+    required this.game,
+    required this.gameController,
+  });
 
-  final String? imageUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    if (imageUrl == null || imageUrl!.isEmpty) {
-      return const ColoredBox(
-        color: AppColors.surfaceLight,
-        child: Center(
-          child: Icon(
-            Icons.sports_esports_rounded,
-            color: AppColors.primary,
-            size: 48,
-          ),
-        ),
-      );
-    }
-
-    return Image.network(
-      imageUrl!,
-      fit: BoxFit.cover,
-      errorBuilder: (_, _, _) => const ColoredBox(
-        color: AppColors.surfaceLight,
-        child: Center(
-          child: Icon(
-            Icons.sports_esports_rounded,
-            color: AppColors.primary,
-            size: 48,
-          ),
-        ),
-      ),
-    );
-  }
+  final GameModel game;
+  final GameController gameController;
 }
