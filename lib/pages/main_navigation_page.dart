@@ -3,6 +3,7 @@ import 'package:checkpoint/core/constants/app_colors.dart';
 import 'package:checkpoint/pages/game_library_page.dart';
 import 'package:checkpoint/pages/library_page.dart';
 import 'package:checkpoint/pages/quest_page.dart';
+import 'package:checkpoint/service/session_notification_service.dart';
 import 'package:flutter/material.dart';
 
 class MainNavigationPage extends StatefulWidget {
@@ -14,18 +15,45 @@ class MainNavigationPage extends StatefulWidget {
   State<MainNavigationPage> createState() => _MainNavigationPageState();
 }
 
-class _MainNavigationPageState extends State<MainNavigationPage> {
+class _MainNavigationPageState extends State<MainNavigationPage>
+    with WidgetsBindingObserver {
   late final List<Widget> _pages;
   int _selectedIndex = 0;
+  final _notifications = SessionNotificationService();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _notifications.listen(_refreshSessions);
     _pages = [
       GameLibraryPage(gameController: widget.gameController),
       LibraryPage(gameController: widget.gameController),
       QuestPage(gameController: widget.gameController),
     ];
+  }
+
+  Future<void> _refreshSessions() async {
+    try {
+      await widget.gameController.refreshSavedData();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Gagal memuat sesi: $error')));
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshSessions();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _notifications.dispose();
+    super.dispose();
   }
 
   void _selectDestination(int index) {

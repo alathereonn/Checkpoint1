@@ -3,8 +3,10 @@ import 'package:checkpoint/enum/library_filter.dart';
 import 'package:checkpoint/enum/library_status.dart';
 import 'package:checkpoint/model/library_game.dart';
 import 'package:checkpoint/pages/session_history_page.dart';
+import 'package:checkpoint/service/session_notification_service.dart';
 import 'package:checkpoint/widgets/library_status_sheet.dart';
 import 'package:flutter/material.dart';
+import 'package:checkpoint/widgets/rawg_attribution.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key, required this.gameController});
@@ -18,6 +20,7 @@ class LibraryPage extends StatefulWidget {
 class _LibraryPageState extends State<LibraryPage> {
   GameController get gameController => widget.gameController;
   LibraryFilter _selectedFilter = LibraryFilter.all;
+  final _notifications = SessionNotificationService();
 
   Color _statusColor(LibraryStatus status) {
     switch (status) {
@@ -50,7 +53,15 @@ class _LibraryPageState extends State<LibraryPage> {
       return;
     }
 
-    gameController.addToLibrary(libraryGame.game, selectedStatus);
+    try {
+      await gameController.addToLibrary(libraryGame.game, selectedStatus);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Gagal menyimpan: $error')));
+      }
+      return;
+    }
 
     if (!context.mounted) {
       return;
@@ -65,27 +76,58 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  void _toggleGameSession(
+  Future<void> _toggleGameSession(
     BuildContext context,
     LibraryGame libraryGame,
-  ) {
-    final activeGameSession = gameController.activeGameSession;
+  ) async {
+    try {
+      final activeGameSession = gameController.activeGameSession;
 
-    if (activeGameSession != null) {
-      if (activeGameSession.libraryGame.game.id != libraryGame.game.id) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('End the active session first'),
-          ),
-        );
+      if (activeGameSession != null) {
+        if (activeGameSession.libraryGame.game.id != libraryGame.game.id) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('End the active session first')),
+          );
+          return;
+        }
+
+        if (await gameController.endGameSession(activeGameSession.id)) {
+          await _notifications.stop();
+        }
         return;
       }
 
-      gameController.endGameSession(activeGameSession.id);
-      return;
+      if (await gameController.startGameSession(libraryGame)) {
+        try {
+          final visible = await _notifications.start(
+            gameController.activeGameSession!,
+          );
+          if (!visible && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Sesi berjalan. Aktifkan izin notifikasi untuk melihat timer.',
+                ),
+              ),
+            );
+          }
+        } catch (error) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Sesi berjalan, tetapi notifikasi gagal: $error'),
+              ),
+            );
+          }
+        }
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal menyimpan sesi: $error')));
+      }
     }
-
-    gameController.startGameSession(libraryGame);
   }
 
   Widget _buildFilterBar() {
@@ -119,6 +161,39 @@ class _LibraryPageState extends State<LibraryPage> {
       appBar: AppBar(
         title: const Text('Library'),
         actions: [
+          ListenableBuilder(
+            listenable: gameController,
+            builder: (context, _) {
+              final session = gameController.activeGameSession;
+              if (session == null) return const SizedBox.shrink();
+              return IconButton(
+                tooltip: 'Tampilkan notifikasi sesi',
+                icon: const Icon(Icons.notifications_active_outlined),
+                onPressed: () async {
+                  try {
+                    final visible = await _notifications.start(session);
+                    if (!visible && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Aktifkan izin notifikasi untuk melihat timer.',
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (error) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Gagal menampilkan notifikasi: $error'),
+                        ),
+                      );
+                    }
+                  }
+                },
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Session History',
             icon: const Icon(Icons.history_rounded),
@@ -129,9 +204,9 @@ class _LibraryPageState extends State<LibraryPage> {
                 arguments: gameController,
               );
             },
-          )
-        ]
-        ),
+          ),
+        ],
+      ),
       body: ListenableBuilder(
         listenable: gameController,
         builder: (context, _) {
@@ -148,18 +223,28 @@ class _LibraryPageState extends State<LibraryPage> {
               _buildFilterBar(),
               Expanded(
                 child: filteredGames.isEmpty
-                    ? Center(
-                        child: Text(
-                          _selectedFilter == LibraryFilter.all
-                              ? 'Your saved games will appear here.'
-                              : 'No ${_selectedFilter.label.toLowerCase()} games yet.',
-                        ),
+                    ? Column(
+                        children: [
+                          Expanded(
+                            child: Center(
+                              child: Text(
+                                _selectedFilter == LibraryFilter.all
+                                    ? 'Your saved games will appear here.'
+                                    : 'No ${_selectedFilter.label.toLowerCase()} games yet.',
+                              ),
+                            ),
+                          ),
+                          const RawgAttribution(),
+                        ],
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.all(16),
-                        itemCount: filteredGames.length,
+                        itemCount: filteredGames.length + 1,
                         separatorBuilder: (_, _) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
+                          if (index == filteredGames.length) {
+                            return const RawgAttribution();
+                          }
                           final libraryGame = filteredGames[index];
                           final game = libraryGame.game;
                           final statusColor = _statusColor(libraryGame.status);
@@ -186,7 +271,9 @@ class _LibraryPageState extends State<LibraryPage> {
                               subtitle: Padding(
                                 padding: const EdgeInsets.only(top: 6),
                                 child: Text(
-                                  'Rating: ${game.rating.toStringAsFixed(1)}',
+                                  game.rating == null
+                                      ? 'Rating unavailable'
+                                      : 'Rating: ${game.rating!.toStringAsFixed(1)}',
                                 ),
                               ),
                               trailing: Row(

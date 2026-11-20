@@ -3,6 +3,7 @@ import 'package:checkpoint/enum/quest_status.dart';
 import 'package:checkpoint/model/library_game.dart';
 import 'package:checkpoint/model/daily_quest.dart';
 import 'package:flutter/material.dart';
+import 'package:checkpoint/widgets/rawg_attribution.dart';
 
 class QuestPage extends StatefulWidget {
   const QuestPage({super.key, required this.gameController});
@@ -49,12 +50,23 @@ class _QuestPageState extends State<QuestPage> {
       return;
     }
 
-    final wasAdded = _gameController.addDailyQuest(
-      libraryGame: draft.libraryGame,
-      title: draft.title,
-      description: draft.description,
-      questDate: DateTime.now(),
-    );
+    bool wasAdded;
+    try {
+      wasAdded = await _gameController.addDailyQuest(
+        libraryGame: draft.libraryGame,
+        title: draft.title,
+        description: draft.description,
+        questDate: DateTime.now(),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan quest: $error')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -96,7 +108,17 @@ class _QuestPageState extends State<QuestPage> {
       return;
     }
 
-    _gameController.deleteDailyQuest(quest.id);
+    try {
+      await _gameController.deleteDailyQuest(quest.id);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menghapus quest: $error')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context)
         .showSnackBar(const SnackBar(content: Text('Quest deleted.')));
@@ -117,38 +139,71 @@ class _QuestPageState extends State<QuestPage> {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Row(
-                  children: QuestStatus.values.map((status) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(status.label),
-                        selected: status == _selectedStatus,
-                        onSelected: (_) {
-                          setState(() {
-                            _selectedStatus = status;
-                          });
-                        },
-                      ),
-                    );
-                  }).toList(),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: QuestStatus.values.map((status) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(status.label),
+                          selected: status == _selectedStatus,
+                          onSelected: (_) {
+                            setState(() {
+                              _selectedStatus = status;
+                            });
+                          },
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
               Expanded(
                 child: quests.isEmpty
-                    ? Center(child: Text(_selectedStatus.emptyMessage))
+                    ? Column(
+                        children: [
+                          Expanded(
+                            child: Center(
+                              child: Text(_selectedStatus.emptyMessage),
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 80),
+                            child: RawgAttribution(),
+                          ),
+                        ],
+                      )
                     : ListView.separated(
                         padding: const EdgeInsets.all(16),
-                        itemCount: quests.length,
+                        itemCount: quests.length + 1,
                         separatorBuilder: (_, _) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
+                          if (index == quests.length) {
+                            return const Padding(
+                              padding: EdgeInsets.only(bottom: 80),
+                              child: RawgAttribution(),
+                            );
+                          }
                           return _QuestCard(
                             quest: quests[index],
-                            onStatusChanged: (status) {
-                              _gameController.updateQuestStatus(
-                                quests[index].id,
-                                status,
-                              );
+                            onStatusChanged: (status) async {
+                              try {
+                                await _gameController.updateQuestStatus(
+                                  quests[index].id,
+                                  status,
+                                );
+                              } catch (error) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Gagal menyimpan quest: $error',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
                             },
                             onDelete: () => _confirmDeleteQuest(quests[index]),
                           );

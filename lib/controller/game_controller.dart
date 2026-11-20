@@ -1,25 +1,140 @@
-import 'package:checkpoint/data/dummy_games.dart';
+import 'dart:async';
+
+import 'package:checkpoint/data/local_database.dart';
 import 'package:checkpoint/enum/library_status.dart';
 import 'package:checkpoint/enum/quest_status.dart';
 import 'package:checkpoint/model/daily_quest.dart';
 import 'package:checkpoint/model/game_model.dart';
 import 'package:checkpoint/model/game_session.dart';
 import 'package:checkpoint/model/library_game.dart';
+import 'package:checkpoint/service/rawg_service.dart';
 import 'package:flutter/foundation.dart';
 
 class GameController extends ChangeNotifier {
-  final List<GameModel> _games = [...dummyGames];
+  GameController({RawgService? rawgService, this._database})
+    : _rawgService = rawgService ?? RawgService();
+
+  final RawgService _rawgService;
+  final LocalDatabase? _database;
+  bool _saving = false;
+
+  Future<void> loadSavedData() async {
+    final database = _database;
+    if (database == null) return;
+    final library = await database.loadLibrary();
+    final byId = {for (final item in library) item.game.id: item};
+    final quests = await database.loadQuests(byId);
+    final sessions = await database.loadSessions(byId);
+    _libraryGames
+      ..clear()
+      ..addAll(library);
+    _dailyQuests
+      ..clear()
+      ..addAll(quests);
+    _gameSessions
+      ..clear()
+      ..addAll(sessions);
+    if (!_disposed) notifyListeners();
+  }
+
+  Future<void> refreshSavedData() async {
+    if (_saving || _disposed) return;
+    await _save(loadSavedData);
+  }
+
+  Future<T> _save<T>(Future<T> Function() action) async {
+    if (_saving) throw StateError('Penyimpanan sedang digunakan. Coba lagi.');
+    _saving = true;
+    try {
+      return await action();
+    } finally {
+      _saving = false;
+    }
+  }
+
+  final List<GameModel> _games = [];
   final List<LibraryGame> _libraryGames = [];
   final List<DailyQuest> _dailyQuests = [];
   final List<GameSession> _gameSessions = [];
 
   String _searchQuery = '';
+  bool _isLoadingGames = false;
+  String? _gamesError;
+  bool _isLoadingMore = false;
+  bool _hasMoreGames = true;
+  String? _loadMoreError;
+  int _page = 0;
+  int _requestVersion = 0;
+  Timer? _searchTimer;
+  bool _disposed = false;
 
   List<GameModel> get games => List.unmodifiable(_games);
   List<LibraryGame> get libraryGames => List.unmodifiable(_libraryGames);
   List<DailyQuest> get dailyQuests => List.unmodifiable(_dailyQuests);
   List<GameSession> get gameSessions => List.unmodifiable(_gameSessions);
   String get searchQuery => _searchQuery;
+  bool get isLoadingGames => _isLoadingGames;
+  String? get gamesError => _gamesError;
+  bool get isLoadingMore => _isLoadingMore;
+  bool get hasMoreGames => _hasMoreGames;
+  String? get loadMoreError => _loadMoreError;
+
+  Future<void> loadGames({bool forceRefresh = false}) async {
+    if (!forceRefresh && (_isLoadingGames || _games.isNotEmpty)) return;
+
+    final version = ++_requestVersion;
+    _isLoadingGames = true;
+    _isLoadingMore = false;
+    _gamesError = null;
+    _loadMoreError = null;
+    _hasMoreGames = false;
+    _page = 0;
+    _games.clear();
+    notifyListeners();
+
+    try {
+      final result = await _rawgService.fetchGames(search: _searchQuery);
+      if (_disposed || version != _requestVersion) return;
+      _games.addAll(result.games);
+      _page = 1;
+      _hasMoreGames = result.hasMore;
+    } catch (error) {
+      if (_disposed || version != _requestVersion) return;
+      _gamesError = error.toString();
+    } finally {
+      if (!_disposed && version == _requestVersion) {
+        _isLoadingGames = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> loadMoreGames() async {
+    if (_isLoadingGames || _isLoadingMore || !_hasMoreGames) return;
+    final version = _requestVersion;
+    _isLoadingMore = true;
+    _loadMoreError = null;
+    notifyListeners();
+    try {
+      final result = await _rawgService.fetchGames(
+        page: _page + 1,
+        search: _searchQuery,
+      );
+      if (_disposed || version != _requestVersion) return;
+      final existingIds = _games.map((game) => game.id).toSet();
+      _games.addAll(result.games.where((game) => existingIds.add(game.id)));
+      _page++;
+      _hasMoreGames = result.hasMore;
+    } catch (error) {
+      if (_disposed || version != _requestVersion) return;
+      _loadMoreError = error.toString();
+    } finally {
+      if (!_disposed && version == _requestVersion) {
+        _isLoadingMore = false;
+        notifyListeners();
+      }
+    }
+  }
 
   List<LibraryGame> get questEligibleLibraryGames {
     return _libraryGames
@@ -40,39 +155,46 @@ class GameController extends ChangeNotifier {
 
   void searchGames(String query) {
     _searchQuery = query.trim();
-    final queryLowercase = _searchQuery.toLowerCase();
-
-    final matchingGames = dummyGames.where((game) {
-      final gameText = '${game.name} ${game.genres.join(' ')}'.toLowerCase();
-      return gameText.contains(queryLowercase);
-    }).toList();
-
-    _games
-      ..clear()
-      ..addAll(matchingGames);
-
+    _searchTimer?.cancel();
+    ++_requestVersion;
+    _isLoadingGames = true;
+    _isLoadingMore = false;
+    _gamesError = null;
+    _loadMoreError = null;
+    _hasMoreGames = false;
     notifyListeners();
+    _searchTimer = Timer(const Duration(milliseconds: 400), () {
+      loadGames(forceRefresh: true);
+    });
   }
 
-  void addToLibrary(GameModel game, LibraryStatus status) {
-    final gameIndex = _libraryGames.indexWhere(
-      (item) => item.game.id == game.id,
-    );
-
-    if (gameIndex == -1) {
-      _libraryGames.add(
-        LibraryGame(game: game, status: status, addedAt: DateTime.now()),
-      );
-    } else {
-      _libraryGames[gameIndex] = _libraryGames[gameIndex].copyWith(
-        status: status,
-      );
-    }
-
-    notifyListeners();
+  @override
+  void dispose() {
+    _disposed = true;
+    _searchTimer?.cancel();
+    super.dispose();
   }
 
-  bool startGameSession(LibraryGame libraryGame) {
+  Future<void> addToLibrary(GameModel game, LibraryStatus status) =>
+      _save(() async {
+        final gameIndex = _libraryGames.indexWhere(
+          (item) => item.game.id == game.id,
+        );
+
+        final item = gameIndex == -1
+            ? LibraryGame(game: game, status: status, addedAt: DateTime.now())
+            : _libraryGames[gameIndex].copyWith(status: status);
+        await _database?.saveLibrary(item);
+        if (gameIndex == -1) {
+          _libraryGames.add(item);
+        } else {
+          _libraryGames[gameIndex] = item;
+        }
+
+        notifyListeners();
+      });
+
+  Future<bool> startGameSession(LibraryGame libraryGame) => _save(() async {
     final gameIsPlaying = _libraryGames.any(
       (item) =>
           item.game.id == libraryGame.game.id &&
@@ -89,31 +211,32 @@ class GameController extends ChangeNotifier {
       startedAt: DateTime.now(),
     );
 
+    await _database?.saveSession(session);
     _gameSessions.add(session);
     notifyListeners();
     return true;
-  }
+  });
 
-  bool endGameSession(String sessionId) {
+  Future<bool> endGameSession(String sessionId) => _save(() async {
     final sessionIndex = _gameSessions.indexWhere(
       (session) => session.id == sessionId && session.isActive,
     );
 
     if (sessionIndex == -1) return false;
 
-    _gameSessions[sessionIndex] = _gameSessions[sessionIndex].finish(
-      DateTime.now(),
-    );
+    final finished = _gameSessions[sessionIndex].finish(DateTime.now());
+    await _database?.saveSession(finished);
+    _gameSessions[sessionIndex] = finished;
     notifyListeners();
     return true;
-  }
+  });
 
-  bool addDailyQuest({
+  Future<bool> addDailyQuest({
     required LibraryGame libraryGame,
     required String title,
     required String description,
     required DateTime questDate,
-  }) {
+  }) => _save(() async {
     final cleanTitle = title.trim();
     if (cleanTitle.isEmpty) return false;
 
@@ -133,23 +256,28 @@ class GameController extends ChangeNotifier {
       status: QuestStatus.pending,
     );
 
+    await _database?.saveQuest(quest);
     _dailyQuests.add(quest);
     notifyListeners();
     return true;
-  }
+  });
 
-  void updateQuestStatus(String questId, QuestStatus status) {
-    final questIndex = _dailyQuests.indexWhere((quest) => quest.id == questId);
-    if (questIndex == -1) return;
+  Future<void> updateQuestStatus(String questId, QuestStatus status) =>
+      _save(() async {
+        final questIndex = _dailyQuests.indexWhere(
+          (quest) => quest.id == questId,
+        );
+        if (questIndex == -1) return;
 
-    _dailyQuests[questIndex] = _dailyQuests[questIndex].copyWith(
-      status: status,
-    );
-    notifyListeners();
-  }
+        final updated = _dailyQuests[questIndex].copyWith(status: status);
+        await _database?.saveQuest(updated);
+        _dailyQuests[questIndex] = updated;
+        notifyListeners();
+      });
 
-  void deleteDailyQuest(String questId) {
+  Future<void> deleteDailyQuest(String questId) => _save(() async {
+    await _database?.deleteQuest(questId);
     _dailyQuests.removeWhere((quest) => quest.id == questId);
     notifyListeners();
-  }
+  });
 }

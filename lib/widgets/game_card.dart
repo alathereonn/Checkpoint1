@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:checkpoint/core/constants/app_colors.dart';
 import 'package:checkpoint/model/game_model.dart';
 import 'package:flutter/material.dart';
@@ -27,7 +28,14 @@ class GameCard extends StatelessWidget {
           children: [
             AspectRatio(
               aspectRatio: 2 / 3,
-              child: const _CoverPlaceholder(),
+              child: game.imageUrl == null
+                  ? const _CoverPlaceholder()
+                  : CachedNetworkImage(
+                      imageUrl: game.imageUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (_, _) => const _CoverPlaceholder(),
+                      errorWidget: (_, _, _) => const _CoverPlaceholder(),
+                    ),
             ),
             Expanded(
               child: Padding(
@@ -41,27 +49,28 @@ class GameCard extends StatelessWidget {
                 ),
               ),
             ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(s(3), s(2), s(3), s(3)),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.star_rounded,
-                    color: AppColors.primary,
-                    size: s(13),
-                  ),
-                  SizedBox(width: s(2)),
-                  Text(
-                    game.rating.toStringAsFixed(1),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.mutedText,
-                      fontSize: s(10),
-                      fontWeight: FontWeight.w600,
+            if (game.rating != null)
+              Padding(
+                padding: EdgeInsets.fromLTRB(s(3), s(2), s(3), s(3)),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.star_rounded,
+                      color: AppColors.primary,
+                      size: s(13),
                     ),
-                  ),
-                ],
+                    SizedBox(width: s(2)),
+                    Text(
+                      game.rating!.toStringAsFixed(1),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.mutedText,
+                        fontSize: s(10),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

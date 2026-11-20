@@ -3,14 +3,12 @@ import 'dart:async';
 import 'package:checkpoint/controller/game_controller.dart';
 import 'package:checkpoint/model/game_session.dart';
 import 'package:flutter/material.dart';
+import 'package:checkpoint/widgets/rawg_attribution.dart';
 
 class SessionHistoryPage extends StatelessWidget {
   static const routeName = '/session-history';
 
-  const SessionHistoryPage({
-    super.key,
-    required this.gameController,
-  });
+  const SessionHistoryPage({super.key, required this.gameController});
 
   final GameController gameController;
 
@@ -135,8 +133,15 @@ class SessionHistoryPage extends StatelessWidget {
           final sessions = gameController.gameSessions;
 
           if (sessions.isEmpty) {
-            return const Center(
-              child: Text('Your game sessions will appear here.'),
+            return const Column(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Text('Your game sessions will appear here.'),
+                  ),
+                ),
+                SafeArea(top: false, child: RawgAttribution()),
+              ],
             );
           }
 
@@ -165,7 +170,7 @@ class SessionHistoryPage extends StatelessWidget {
 
           return ListView.separated(
             padding: const EdgeInsets.all(16),
-            itemCount: gameGroups.length + 1,
+            itemCount: gameGroups.length + 2,
             separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               if (index == 0) {
@@ -176,6 +181,9 @@ class SessionHistoryPage extends StatelessWidget {
                 );
               }
 
+              if (index == gameGroups.length + 1) {
+                return const SafeArea(top: false, child: RawgAttribution());
+              }
               return _buildGameGroup(gameGroups[index - 1]);
             },
           );
